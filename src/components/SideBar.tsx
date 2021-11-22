@@ -14,6 +14,16 @@ import { SearchIcon } from "@heroicons/react/solid";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { api } from "../services/api";
+import { createClient } from "@supabase/supabase-js";
+import { useAuth } from "../hooks/useAuth";
+import { IoLogoGameControllerA, IoLogoGameControllerB } from "react-icons/io";
+import { RiChatPollLine } from "react-icons/ri";
+import { GiComputing } from "react-icons/gi";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_KEY
+);
 
 declare let window: Window &
   typeof globalThis & {
@@ -23,21 +33,39 @@ declare let window: Window &
 const navigationConfig = [
   { name: "Dashboard", href: "/app", icon: HomeIcon, current: false },
   {
-    name: "Edcuation",
+    name: "Education",
     href: "/app/education",
     icon: CalendarIcon,
     current: false,
   },
   {
-    name: "Purchases",
-    href: "/app/purchases",
+    name: "Exchange",
+    href: "/app/exchange",
     icon: UploadIcon,
     current: false,
   },
   {
-    name: "Auction",
-    href: "/app/auction",
-    icon: LockClosedIcon,
+    name: "Live Playing",
+    href: "/app/livePlaying",
+    icon: IoLogoGameControllerA,
+    current: false,
+  },
+  {
+    name: "New Players",
+    href: "/app/newPlayers",
+    icon: IoLogoGameControllerB,
+    current: false,
+  },
+  {
+    name: "Polls",
+    href: "/app/polls",
+    icon: RiChatPollLine,
+    current: false,
+  },
+  {
+    name: "Developers",
+    href: "/app/developers",
+    icon: GiComputing,
     current: false,
   },
 ];
@@ -61,32 +89,8 @@ export default function SideBar({ children }) {
       current: router.pathname.startsWith(nav.href),
     };
   });
+  const { handleSetLogin, handleLogout, user } = useAuth();
 
-  async function login() {
-    setLoginState("connecting to your wallet");
-    if (!window.ethereum) {
-      setLoginState("No MetaMask wallet, please install it...");
-      return;
-    }
-    setLoginState("connected");
-
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
-    await provider.send("eth_requestAccounts", []);
-    const signer = provider.getSigner();
-    const walletAddress = await signer.getAddress();
-    console.log("walletAddress", walletAddress);
-
-    let response = await api.post("auth/nonce", { walletAddress });
-    const { nonce } = response.data;
-    const signature = await signer.signMessage(nonce);
-    response = await api.post("auth/wallet", {
-      walletAddress,
-      nonce,
-      signature,
-    });
-
-    console.log("responseWallet", response.data.user);
-  }
   return (
     <div className="h-screen flex overflow-hidden bg-gray-100">
       <Transition.Root show={sidebarOpen} as={Fragment}>
@@ -137,9 +141,13 @@ export default function SideBar({ children }) {
                   </button>
                 </div>
               </Transition.Child>
-              <div className="flex-shrink-0 flex items-center px-4">
+              <div className="flex justify-center flex items-center px-4">
                 <Link href={"/"}>
-                  <a className="text-2xl font-bold">Game changers 🚀</a>
+                  <img
+                    className="object-cover w-20 h-20 rounded-full dark:border-indigo-400"
+                    alt="Testimonial avatar"
+                    src="/images/logo1.jpg"
+                  />
                 </Link>
               </div>
               <div className="mt-5 flex-1 h-0 overflow-y-auto">
@@ -182,10 +190,17 @@ export default function SideBar({ children }) {
         <div className="flex flex-col w-64">
           {/* Sidebar component, swap this element with another sidebar if you like */}
           <div className="flex flex-col flex-grow border-r border-gray-200 pt-5 pb-4 bg-white overflow-y-auto">
-            <div className="flex items-center flex-shrink-0 px-4">
+            <div className="flex items-center cursor-pointer justify-center">
               <Link href={"/"}>
-                <a className="text-2xl font-bold">Game changers 🚀</a>
+                <img
+                  className="object-cover w-20 h-20 rounded-full dark:border-indigo-400"
+                  alt="Testimonial avatar"
+                  src="/images/logo1.jpg"
+                />
               </Link>
+              {/* <Link href={"/"}>
+                <a className="text-2xl font-bold">Game changers 🚀</a>
+              </Link> */}
             </div>
             <div className="mt-5 flex-grow flex flex-col">
               <nav className="flex-1 px-2 bg-white space-y-1">
@@ -227,25 +242,7 @@ export default function SideBar({ children }) {
             <MenuAlt2Icon className="h-6 w-6" aria-hidden="true" />
           </button>
           <div className="flex-1 px-4 flex justify-between">
-            <div className="flex-1 flex">
-              <form className="w-full flex md:ml-0" action="#" method="GET">
-                <label htmlFor="search_field" className="sr-only">
-                  Search
-                </label>
-                <div className="relative w-full text-gray-400 focus-within:text-gray-600">
-                  <div className="absolute inset-y-0 left-0 flex items-center pointer-events-none">
-                    <SearchIcon className="h-5 w-5" aria-hidden="true" />
-                  </div>
-                  <input
-                    id="search_field"
-                    className="block w-full h-full pl-8 pr-3 py-2 border-transparent text-gray-900 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-0 focus:border-transparent sm:text-sm"
-                    placeholder="Search"
-                    type="search"
-                    name="search"
-                  />
-                </div>
-              </form>
-            </div>
+            <div className="flex-1 flex"></div>
             <div className="ml-4 flex items-center md:ml-6">
               {/* <button className="bg-white p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                 <span className="sr-only">View notifications</span>
@@ -258,12 +255,31 @@ export default function SideBar({ children }) {
               >
                 {loginState}
               </p>
-              <button
-                onClick={login}
+
+              {user ? (
+                <button
+                  onClick={handleLogout}
+                  className="flex m-2 items-center justify-center px-2 py-2 f tracking-wide text-indigo-100 capitalize transition-colors duration-200 transform bg-indigo-600 rounded-md hover:bg-indigo-100  hover:text-indigo-800 focus:outline-none focus:ring focus:ring-indigo-300 focus:ring-opacity-80"
+                >
+                  <span className="mx-1">Logout </span>
+                </button>
+              ) : (
+                <button
+                  onClick={handleSetLogin}
+                  className="flex m-2 items-center justify-center px-2 py-2 f tracking-wide text-indigo-100 capitalize transition-colors duration-200 transform bg-indigo-600 rounded-md hover:bg-indigo-100  hover:text-indigo-800 focus:outline-none focus:ring focus:ring-indigo-300 focus:ring-opacity-80"
+                >
+                  <span className="mx-1">Login </span>
+                </button>
+              )}
+
+              <a
+                href="https://app.ubeswap.org/#/swap?inputCurrency=0xb33a6af8a3ad22be594ec129ab5183b87b9c04cf"
+                target="_blank"
                 className="flex m-2 items-center justify-center px-2 py-2 font-medium tracking-wide text-indigo-100 capitalize transition-colors duration-200 transform bg-indigo-600 rounded-md hover:bg-indigo-100  hover:text-indigo-800 focus:outline-none focus:ring focus:ring-indigo-300 focus:ring-opacity-80"
+                rel="noreferrer"
               >
-                <span className="mx-1">Login With Metamask</span>
-              </button>
+                <span className="mx-1">Buy Token</span>
+              </a>
               {/* Profile dropdown */}
               <Menu as="div" className="ml-3 relative">
                 {({ open }) => (
